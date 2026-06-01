@@ -11,7 +11,30 @@ class CitilinkSpider(scrapy.Spider):
     allowed_domains = ["citilink.ru", "www.citilink.ru"]
     start_urls = ["https://www.citilink.ru/catalog/smartfony/"]
 
+    custom_settings = {
+        "DEFAULT_REQUEST_HEADERS": {
+            "Accept": "text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8",
+            "Accept-Language": "ru-RU,ru;q=0.9,en;q=0.8",
+        },
+        "DOWNLOAD_TIMEOUT": 30,
+        "HTTPERROR_ALLOWED_CODES": [401, 403],
+        "ROBOTSTXT_OBEY": False,
+        "USER_AGENT": (
+            "Mozilla/5.0 (Windows NT 10.0; Win64; x64) "
+            "AppleWebKit/537.36 (KHTML, like Gecko) "
+            "Chrome/125.0.0.0 Safari/537.36"
+        ),
+    }
+
     def parse(self, response):
+        if response.status in {401, 403}:
+            self.logger.error(
+                "%s вернул HTTP %s. Сайт заблокировал автоматический запрос или требует браузерную проверку.",
+                response.url,
+                response.status,
+            )
+            return
+
         for product in response.css("div.product_data__gtm-js, div[data-meta-product-id], div[data-params]"):
             params = self._load_params(product.attrib.get("data-params", ""))
             url = response.urljoin(

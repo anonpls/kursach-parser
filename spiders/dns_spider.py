@@ -9,7 +9,30 @@ class DnsSpider(scrapy.Spider):
     allowed_domains = ["dns-shop.ru", "www.dns-shop.ru"]
     start_urls = ["https://www.dns-shop.ru/catalog/17a8a01d16404e77/smartfony/"]
 
+    custom_settings = {
+        "DEFAULT_REQUEST_HEADERS": {
+            "Accept": "text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8",
+            "Accept-Language": "ru-RU,ru;q=0.9,en;q=0.8",
+        },
+        "DOWNLOAD_TIMEOUT": 30,
+        "HTTPERROR_ALLOWED_CODES": [401, 403],
+        "ROBOTSTXT_OBEY": False,
+        "USER_AGENT": (
+            "Mozilla/5.0 (Windows NT 10.0; Win64; x64) "
+            "AppleWebKit/537.36 (KHTML, like Gecko) "
+            "Chrome/125.0.0.0 Safari/537.36"
+        ),
+    }
+
     def parse(self, response):
+        if response.status in {401, 403}:
+            self.logger.error(
+                "%s вернул HTTP %s. Сайт заблокировал автоматический запрос или требует браузерную проверку.",
+                response.url,
+                response.status,
+            )
+            return
+
         for product in response.css("div.catalog-product, div[data-code]"):
             url = response.urljoin(
                 product.css(
