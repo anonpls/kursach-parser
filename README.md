@@ -1,22 +1,24 @@
-# Сервис сравнения цен товаров (Scrapy + Django + Celery)
+# Сервис сравнения цен товаров (Scrapy + Django)
 
-Минимальный каркас сервиса сравнения цен с асинхронным парсингом двух магазинов:
-- **ROZETKA**
-- **Citrus**
+Минимальный каркас сервиса сравнения цен с парсингом российских магазинов:
+- **DNS**
+- **Ситилинк**
 
 ## Что реализовано
 - Django-модели для товаров, магазинов и истории цен.
-- Celery-задача для периодического обновления цен и уведомлений о скидках.
-- Scrapy-спайдеры для 2 магазинов.
+- Scrapy-спайдеры для 2 российских магазинов.
+- Скрипт, который сам запускает парсинг и сохраняет данные в базу без ручного ввода Python-кода в `manage.py shell`.
+- Dev-скрипт для запуска приложения из одного терминала.
 - API endpoint для графика цен по товару.
 
 ## Архитектура
 1. `Scrapy` собирает актуальные цены.
-2. `Celery` запускает парсинг асинхронно и сохраняет историю цен.
+2. Скрипт `scripts/load_prices.py` сохраняет товары и историю цен в SQLite через Django-сервисы.
 3. `Django` хранит данные и отдает API.
 4. При снижении цены формируется запись уведомления.
+5. `Celery` оставлен в проекте для асинхронных задач, но для обычного локального запуска он не обязателен.
 
-## Как запустить парсер (пошагово)
+## Быстрый запуск без четырех терминалов
 
 ### 1) Установить зависимости
 ```bash
@@ -25,108 +27,109 @@ source .venv/bin/activate
 pip install -r requirements.txt
 ```
 
-### 2) Поднять Redis (брокер Celery)
-Если Docker у вас не запущен (ошибка про `dockerDesktopLinuxEngine` на Windows), сначала откройте **Docker Desktop** и дождитесь статуса *Engine running*.
-
-Проверка:
-```bash
-docker version
+На Windows в `cmd` активация такая:
+```cmd
+.venv\Scripts\activate
 ```
 
-Если Docker недоступен, используйте один из вариантов ниже.
+### 2) Запустить сайт
+Одна команда применит миграции и запустит Django:
+```bash
+python scripts/start_dev.py
+```
 
-#### Вариант A: Docker (если установлен и запущен)
+После запуска сайт будет доступен на:
+```text
+http://127.0.0.1:8000/
+```
+
+Если вам все-таки нужен Celery worker, запустите тот же скрипт с флагом — тогда скрипт также попробует поднять Redis через Docker:
+```bash
+python scripts/start_dev.py --with-worker
+```
+На Windows worker будет запущен с `-P solo`, потому что стандартный `prefork` pool может падать при старте.
+
+### 3) Спарсить товары и сохранить их в базу
+Откройте второй терминал только для разовой загрузки цен и выполните:
+```bash
+python scripts/load_prices.py
+```
+
+Скрипт сам выполнит Scrapy для DNS и Ситилинка, применит миграции, запишет JSON в папку `data/` и сохранит товары в SQLite.
+Вводить код вручную в `python manage.py shell` больше не нужно.
+Если магазин вернул антибот-страницу, `401` или `403`, скрипт остановится с понятной ошибкой вместо тихого сохранения пустого списка.
+
+Если JSON уже лежит в `data/` и нужно только повторно загрузить его в базу:
+```bash
+python scripts/load_prices.py --skip-parse
+```
+
+Можно загрузить только один магазин:
+```bash
+python scripts/load_prices.py dns
+python scripts/load_prices.py citilink
+```
+
+### 4) Проверить API графика цен
+После загрузки данных откройте:
+```text
+http://127.0.0.1:8000/api/products/<product_id>/chart/
+```
+
+Например, если товар получил ID `1`:
+```text
+http://127.0.0.1:8000/api/products/1/chart/
+```
+
+## Если `scripts/load_prices.py` пишет `No module named 'app'`
+Обновите проект: скрипт добавляет корень репозитория в `sys.path` автоматически. После обновления запускайте его из корня проекта:
+```bash
+python scripts/load_prices.py dns
+```
+
+## Если магазин возвращает `401` или `403`
+DNS и Ситилинк могут включать антибот-защиту. Скрипт отправляет браузерный `User-Agent`, но если сайт все равно блокирует запрос, попробуйте позже, другой магазин или уже сохраненный JSON через:
+```bash
+python scripts/load_prices.py --skip-parse
+```
+
+## Если Scrapy падает с `_setAcceptableProtocols`
+На Windows при свежих транзитивных зависимостях может установиться несовместимая версия Twisted.
+Переустановите зависимости после обновления `requirements.txt`:
+```bash
+pip install -r requirements.txt --upgrade
+```
+
+## Ручной запуск компонентов, если нужен
+
+### Redis через Docker
+```bash
+docker start price-redis
+```
+Если контейнера еще нет:
 ```bash
 docker run -d --name price-redis -p 6379:6379 redis:7
 ```
 
-Если видите ошибку:
-`failed to fetch anonymous token ... https://auth.docker.io/token ... EOF`, это обычно сеть/прокси/DNS до Docker Hub.
-
-Проверьте по шагам:
+### Django
 ```bash
-docker login
-docker pull redis:7
-```
-
-Если `docker pull` не проходит:
-- Проверьте VPN/прокси/фаервол (часто режет `auth.docker.io` и `registry-1.docker.io`).
-- На Windows в Docker Desktop задайте proxy (Settings → Resources/Proxies).
-- Попробуйте сменить DNS (например 8.8.8.8 / 1.1.1.1) и перезапустить Docker Desktop.
-
-Альтернативы без Docker Hub:
-- Используйте Redis через WSL (Вариант B ниже).
-- Или локально установите Redis нативно в Windows (Вариант C ниже).
-
-#### Вариант B: Redis без Docker (Windows через WSL)
-```bash
-wsl
-sudo apt update
-sudo apt install -y redis-server
-sudo service redis-server start
-redis-cli ping
-```
-
-#### Вариант C: Redis через Chocolatey (нативно в Windows)
-```powershell
-choco install redis-64 -y
-redis-server
-```
-
-В ответ на `redis-cli ping` должно быть `PONG`.
-
-### 3) Настроить Django-проект
-В `settings.py` должны быть:
-- `INSTALLED_APPS`: `app.shops`, `django_celery_results`
-- `CELERY_BROKER_URL = "redis://localhost:6379/0"`
-- `CELERY_RESULT_BACKEND = "django-db"`
-
-После этого выполнить миграции:
-```bash
-python manage.py makemigrations
 python manage.py migrate
+python manage.py runserver
 ```
 
-### 4) Запустить Celery worker
+### Celery worker
+Linux/macOS:
 ```bash
 celery -A app.core.celery_app worker -l info
 ```
 
-### 5) Снять данные Scrapy-спайдером
-Из корня репозитория:
+Windows:
 ```bash
-scrapy runspider spiders/rozetka_spider.py -O data/rozetka.json
-scrapy runspider spiders/citrus_spider.py -O data/citrus.json
+celery -A app.core.celery_app worker -l info -P solo
 ```
 
-### 6) Отправить данные в асинхронную задачу Celery
-Пример через Django shell:
+### Scrapy без сохранения в базу
 ```bash
-python manage.py shell
-```
-```python
-import json
-from app.shops.tasks import sync_rozetka, sync_citrus
-
-with open("data/rozetka.json", "r", encoding="utf-8") as f:
-    rozetka_items = json.load(f)
-
-with open("data/citrus.json", "r", encoding="utf-8") as f:
-    citrus_items = json.load(f)
-
-sync_rozetka.delay(rozetka_items)
-sync_citrus.delay(citrus_items)
-```
-
-### 7) Проверить API графика цен
-После загрузки данных:
-```bash
-GET /api/products/<product_id>/chart/
-```
-
-## Быстрый smoke check
-Если хотите проверить только парсинг без Django/Celery:
-```bash
-scrapy runspider spiders/rozetka_spider.py -o /tmp/rozetka.json
-head -n 20 /tmp/rozetka.json
+scrapy runspider spiders/dns_spider.py -O data/dns.json
+scrapy runspider spiders/citilink_spider.py -O data/citilink.json
 ```
