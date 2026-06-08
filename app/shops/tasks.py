@@ -4,10 +4,10 @@ from .services import upsert_products
 
 
 @shared_task
-def sync_dns(items: list[dict]) -> int:
-    return upsert_products("DNS", "https://www.dns-shop.ru/", items)
+def sync_dicentre(items: list[dict]) -> int:
+    return upsert_products("DiCENTRE", "https://dicentre.ru/", items)
 
 
 @shared_task
-def sync_citilink(items: list[dict]) -> int:
-    return upsert_products("Ситилинк", "https://www.citilink.ru/", items)
+def sync_techprom(items: list[dict]) -> int:
+    return upsert_products("TechProm", "https://www.techprom.ru/", items)

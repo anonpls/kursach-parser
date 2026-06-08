@@ -11,17 +11,17 @@ if str(ROOT_DIR) not in sys.path:
 
 DATA_DIR = ROOT_DIR / "data"
 SPIDERS = {
-    "dns": {
-        "path": ROOT_DIR / "spiders" / "dns_spider.py",
-        "output": DATA_DIR / "dns.json",
-        "store_name": "DNS",
-        "base_url": "https://www.dns-shop.ru/",
+    "dicentre": {
+        "path": ROOT_DIR / "spiders" / "dicentre_spider.py",
+        "output": DATA_DIR / "dicentre.json",
+        "store_name": "DiCENTRE",
+        "base_url": "https://dicentre.ru/",
     },
-    "citilink": {
-        "path": ROOT_DIR / "spiders" / "citilink_spider.py",
-        "output": DATA_DIR / "citilink.json",
-        "store_name": "Ситилинк",
-        "base_url": "https://www.citilink.ru/",
+    "techprom": {
+        "path": ROOT_DIR / "spiders" / "techprom_spider.py",
+        "output": DATA_DIR / "techprom.json",
+        "store_name": "TechProm",
+        "base_url": "https://www.techprom.ru/",
     },
 }
 

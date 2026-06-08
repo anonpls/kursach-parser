@@ -1,153 +1,145 @@
 # CSS Selectors для парсеров смартфонов
 
-## 1. TECHPROM (Смартфоны.html)
+## 1. TechProm (`Смартфоны.html`)
 
-### Структура сайта: Bitrix24 (магнит-шаблон)
+### Структура сайта: Bitrix (`magnet`-шаблон)
 
-#### Контейнер продуктов:
-```
+#### Контейнер продуктов
+```css
 .products-list.card
 ```
 
-#### Каждый товар (wrapper):
-```
+#### Каждый товар
+```css
 .product-wrap
 ```
 
-#### Элементы товара:
+#### Элементы товара
 - **Название товара:**
-  ```
-  .product-card a.name
-  ```
-  или более специфично:
-  ```
+  ```css
   .product-wrap a.name
   ```
 
 - **Цена:**
-  ```
+  ```css
   .price span[id*="_price"]
-  ```
-  или:
-  ```
   .price-container .price span
   ```
 
 - **Изображение:**
-  ```
+  ```css
   .img-product-link img
   ```
+  В HTML часто реальная картинка лежит в `data-src`, а в `src` стоит заглушка.
 
 - **Ссылка на товар:**
-  ```
+  ```css
   .product-wrap a.name
+  .product-wrap a.img-product-link
   ```
   атрибут: `href`
 
-- **ID товара:** (в атрибуте родительского div)
+- **ID товара:**
+  ```css
+  .product-wrap div[id^="bx_"][data-entity="item"]
   ```
-  .product-wrap div[id*="bx_"]
-  ```
-  атрибут: `id` (содержит ID товара)
+  атрибут: `id`; в примере ID товара находится между подчёркиваниями: `bx_..._99982_...`.
 
 - **Статус наличия:**
-  ```
+  ```css
   .stock .product-item-quantity
   ```
 
-#### XPath альтернативы:
+#### XPath альтернативы
 ```xpath
-//div[@class='product-wrap']
-//a[@class='name']
+//div[contains(@class, 'product-wrap')]
+//a[contains(@class, 'name')]
 //span[contains(@id, '_price')]
-//img[@class='img-product-link']
+//a[contains(@class, 'img-product-link')]//img
 ```
 
 ---
 
-## 2. DiCENTRE (Смартфоны и телефоны... DiCENTRE.html)
+## 2. DiCENTRE (`Смартфоны и телефоны... DiCENTRE.html`)
 
-### Структура сайта: WebAsyst (МастерШоп)
+### Структура сайта: WebAsyst (`mastershop`-тема)
 
-#### Контейнер продуктов:
-```
-.products-grid
-или
-div[class*="products"]
-```
-
-#### Каждый товар (wrapper):
-```
-.product-card
+#### Контейнер продуктов
+```css
+.product-list.product-list--tile
+.js-preview-products
 ```
 
-#### Элементы товара:
+#### Каждый товар
+```css
+.product-tile__outer
+.js-product-item.product-tile
+```
+
+#### Элементы товара
 - **Название товара:**
-  ```
-  .product-card__name
-  или
-  .product-card a.product-card__name
+  ```css
+  .product-tile__name a
   ```
 
 - **Цена:**
-  ```
-  .product-card__price
-  или
-  .product-card__price-current
+  ```css
+  form.js-add-to-cart::attr(data-price)
+  .product-tile__price .price
   ```
 
 - **Изображение:**
-  ```
-  .product-card__image
-  или
-  .product-card img
+  ```css
+  .product-tile__image img.js-product-preview-img
   ```
 
 - **Ссылка на товар:**
+  ```css
+  .product-tile__name a
+  .product-tile__image a
   ```
-  .product-card a[href*="/sotovye-telefony/"]
+  атрибут: `href`
+
+- **ID товара:**
+  ```css
+  input[name="product_id"]
+  [data-product-id]
+  [data-product]
+  ```
+  атрибуты: `value`, `data-product-id`, `data-product`
+
+- **Статус наличия:**
+  ```css
+  .product-stock.product-tile__stock
   ```
 
-- **Рейтинг/Отзывы:**
-  ```
-  .product-card__rating
-  или
-  .product-card__reviews-count
-  ```
-
-- **ID товара:** (в атрибуте data)
-  ```
-  .product-card[data-id]
-  атрибут: data-id
-  ```
-
-#### XPath альтернативы:
+#### XPath альтернативы
 ```xpath
-//div[@class='product-card']
-//a[@class='product-card__name']
-//span[@class='product-card__price']
-//img[@class='product-card__image']
+//div[contains(@class, 'product-tile__outer')]
+//div[contains(@class, 'product-tile__name')]//a
+//form[contains(@class, 'js-add-to-cart')]/@data-price
+//input[@name='product_id']/@value
 ```
 
 ---
 
 ## Универсальные селекторы для обоих сайтов
 
-### Для получения всех товаров:
+### Для получения всех товаров
 ```python
 # TechProm
 products = response.css('.products-list.card .product-wrap')
 
 # DiCENTRE
-products = response.css('.product-card')
+products = response.css('.product-list .product-tile__outer')
 ```
 
 ---
 
-## Примечания:
+## Примечания
 
-1. **TechProm** использует шаблон Bitrix24, CSS классы заканчиваются на `bx_`
-2. **DiCENTRE** использует платформу WebAsyst, более структурированные BEM-селекторы
-3. Оба сайта поддерживают асинхронную загрузку, может потребоваться Selenium/Playwright для некоторых страниц
-4. Цены обычно содержат не-разрывные пробелы (`&nbsp;`), требуется очистка
-5. Изображения часто загружаются через data-lazy, может потребоваться обработка атрибутов `data-src`
+1. **TechProm** использует Bitrix-разметку с ID вида `bx_...`.
+2. **DiCENTRE** использует WebAsyst-разметку с карточками `product-tile`.
+3. Оба сайта могут подгружать часть данных асинхронно, поэтому при изменениях верстки может понадобиться Selenium/Playwright.
+4. Цены содержат пробелы, `&nbsp;`, HTML-теги и символ рубля, поэтому перед сохранением нужна очистка до числа.
+5. Изображения могут использовать lazy-load (`data-src`, `data-img`) — это важно, если позже в модели товара появится поле изображения.

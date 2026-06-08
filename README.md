@@ -1,8 +1,8 @@
 # Сервис сравнения цен товаров (Scrapy + Django)
 
 Минимальный каркас сервиса сравнения цен с парсингом российских магазинов:
-- **DNS**
-- **Ситилинк**
+- **DiCENTRE**
+- **TechProm**
 
 ## Что реализовано
 - Django-модели для товаров, магазинов и истории цен.
@@ -55,7 +55,7 @@ python scripts/start_dev.py --with-worker
 python scripts/load_prices.py
 ```
 
-Скрипт сам выполнит Scrapy для DNS и Ситилинка, применит миграции, запишет JSON в папку `data/` и сохранит товары в SQLite.
+Скрипт сам выполнит Scrapy для DiCENTRE и TechProm, применит миграции, запишет JSON в папку `data/` и сохранит товары в SQLite.
 Вводить код вручную в `python manage.py shell` больше не нужно.
 Если магазин вернул антибот-страницу, `401` или `403`, скрипт остановится с понятной ошибкой вместо тихого сохранения пустого списка.
 
@@ -66,8 +66,8 @@ python scripts/load_prices.py --skip-parse
 
 Можно загрузить только один магазин:
 ```bash
-python scripts/load_prices.py dns
-python scripts/load_prices.py citilink
+python scripts/load_prices.py dicentre
+python scripts/load_prices.py techprom
 ```
 
 ### 4) Проверить API графика цен
@@ -84,11 +84,11 @@ http://127.0.0.1:8000/api/products/1/chart/
 ## Если `scripts/load_prices.py` пишет `No module named 'app'`
 Обновите проект: скрипт добавляет корень репозитория в `sys.path` автоматически. После обновления запускайте его из корня проекта:
 ```bash
-python scripts/load_prices.py dns
+python scripts/load_prices.py dicentre
 ```
 
 ## Если магазин возвращает `401` или `403`
-DNS и Ситилинк могут включать антибот-защиту. Скрипт отправляет браузерный `User-Agent`, но если сайт все равно блокирует запрос, попробуйте позже, другой магазин или уже сохраненный JSON через:
+DiCENTRE и TechProm могут включать антибот-защиту. Скрипт отправляет браузерный `User-Agent`, но если сайт все равно блокирует запрос, попробуйте позже, другой магазин или уже сохраненный JSON через:
 ```bash
 python scripts/load_prices.py --skip-parse
 ```
@@ -130,6 +130,6 @@ celery -A app.core.celery_app worker -l info -P solo
 
 ### Scrapy без сохранения в базу
 ```bash
-scrapy runspider spiders/dns_spider.py -O data/dns.json
-scrapy runspider spiders/citilink_spider.py -O data/citilink.json
+scrapy runspider spiders/dicentre_spider.py -O data/dicentre.json
+scrapy runspider spiders/techprom_spider.py -O data/techprom.json
 ```
