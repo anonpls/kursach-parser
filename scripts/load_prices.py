@@ -76,7 +76,7 @@ def main() -> None:
         "stores",
         nargs="*",
         choices=sorted(SPIDERS),
-        default=sorted(SPIDERS),
+        default=None,
         help="Магазины для парсинга. По умолчанию запускаются все.",
     )
     parser.add_argument(
@@ -91,9 +91,11 @@ def main() -> None:
     )
     args = parser.parse_args()
 
+    stores = args.stores or sorted(SPIDERS)
+
     if not args.skip_parse:
-        parse_prices(args.stores)
-    save_prices(args.stores, allow_empty=args.allow_empty)
+        parse_prices(stores)
+    save_prices(stores, allow_empty=args.allow_empty)
 
 
 if __name__ == "__main__":

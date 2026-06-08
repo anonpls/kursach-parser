@@ -6,6 +6,10 @@ from contextlib import suppress
 from pathlib import Path
 
 ROOT_DIR = Path(__file__).resolve().parent.parent
+if str(ROOT_DIR) not in sys.path:
+    sys.path.insert(0, str(ROOT_DIR))
+
+from scripts.load_prices import SPIDERS, parse_prices, save_prices
 
 
 def run(command: list[str], check: bool = True) -> subprocess.CompletedProcess:
@@ -38,12 +42,48 @@ def main() -> None:
     )
     parser.add_argument("--host", default="127.0.0.1", help="Хост Django runserver.")
     parser.add_argument("--port", default="8000", help="Порт Django runserver.")
+    parser.add_argument(
+        "--stores",
+        nargs="+",
+        choices=sorted(SPIDERS),
+        default=None,
+        help="Магазины для предварительного парсинга. По умолчанию все.",
+    )
+    parser.add_argument(
+        "--parse-before-start",
+        action="store_true",
+        help="Перед запуском сайта спарсить выбранные магазины и сохранить цены в базу.",
+    )
+    parser.add_argument(
+        "--parse-only",
+        action="store_true",
+        help="Только спарсить выбранные магазины и выйти без запуска Django.",
+    )
+    parser.add_argument(
+        "--skip-parse",
+        action="store_true",
+        help="Для --parse-before-start/--parse-only не запускать Scrapy, а загрузить JSON из data/.",
+    )
+    parser.add_argument(
+        "--allow-empty",
+        action="store_true",
+        help="Для --parse-before-start/--parse-only не считать пустой Scrapy-результат ошибкой.",
+    )
     args = parser.parse_args()
+
+    selected_stores = args.stores or sorted(SPIDERS)
 
     if args.with_worker:
         ensure_redis()
 
     run([sys.executable, "manage.py", "migrate"])
+
+    if args.parse_before_start or args.parse_only:
+        if not args.skip_parse:
+            parse_prices(selected_stores)
+        save_prices(selected_stores, allow_empty=args.allow_empty)
+        if args.parse_only:
+            return
 
     processes: list[subprocess.Popen] = []
     if args.with_worker:
