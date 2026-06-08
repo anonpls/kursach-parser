@@ -11,17 +11,17 @@ if str(ROOT_DIR) not in sys.path:
 
 DATA_DIR = ROOT_DIR / "data"
 SPIDERS = {
-    "dns": {
-        "path": ROOT_DIR / "spiders" / "dns_spider.py",
-        "output": DATA_DIR / "dns.json",
-        "store_name": "DNS",
-        "base_url": "https://www.dns-shop.ru/",
+    "dicentre": {
+        "path": ROOT_DIR / "spiders" / "dicentre_spider.py",
+        "output": DATA_DIR / "dicentre.json",
+        "store_name": "DiCENTRE",
+        "base_url": "https://dicentre.ru/",
     },
-    "citilink": {
-        "path": ROOT_DIR / "spiders" / "citilink_spider.py",
-        "output": DATA_DIR / "citilink.json",
-        "store_name": "Ситилинк",
-        "base_url": "https://www.citilink.ru/",
+    "techprom": {
+        "path": ROOT_DIR / "spiders" / "techprom_spider.py",
+        "output": DATA_DIR / "techprom.json",
+        "store_name": "TechProm",
+        "base_url": "https://www.techprom.ru/",
     },
 }
 
@@ -76,7 +76,7 @@ def main() -> None:
         "stores",
         nargs="*",
         choices=sorted(SPIDERS),
-        default=sorted(SPIDERS),
+        default=None,
         help="Магазины для парсинга. По умолчанию запускаются все.",
     )
     parser.add_argument(
@@ -91,9 +91,11 @@ def main() -> None:
     )
     args = parser.parse_args()
 
+    stores = args.stores or sorted(SPIDERS)
+
     if not args.skip_parse:
-        parse_prices(args.stores)
-    save_prices(args.stores, allow_empty=args.allow_empty)
+        parse_prices(stores)
+    save_prices(stores, allow_empty=args.allow_empty)
 
 
 if __name__ == "__main__":

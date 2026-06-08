@@ -1,15 +1,13 @@
-import html
-import json
 import re
 from hashlib import sha1
 
 import scrapy
 
 
-class CitilinkSpider(scrapy.Spider):
-    name = "citilink"
-    allowed_domains = ["citilink.ru", "www.citilink.ru"]
-    start_urls = ["https://www.citilink.ru/catalog/smartfony/"]
+class DicentreSpider(scrapy.Spider):
+    name = "dicentre"
+    allowed_domains = ["dicentre.ru", "www.dicentre.ru"]
+    start_urls = ["https://dicentre.ru/sotovye-telefony/"]
 
     custom_settings = {
         "DEFAULT_REQUEST_HEADERS": {
@@ -35,29 +33,30 @@ class CitilinkSpider(scrapy.Spider):
             )
             return
 
-        for product in response.css("div.product_data__gtm-js, div[data-meta-product-id], div[data-params]"):
-            params = self._load_params(product.attrib.get("data-params", ""))
+        products = response.css(".product-list .product-tile__outer") or response.css(".js-product-item.product-tile")
+
+        for product in products:
             url = response.urljoin(
                 product.css(
-                    "a[data-meta-name='ProductVerticalSnippet__name']::attr(href), "
-                    "a.ProductCardVertical__name::attr(href), "
-                    "a[href*='/product/']::attr(href)"
-                ).get(params.get("url", ""))
+                    ".product-tile__name a::attr(href), "
+                    ".product-tile__image a::attr(href), "
+                    "a[href*='/sotovye-telefony/']::attr(href)"
+                ).get("")
             )
-            name = params.get("shortName") or params.get("name") or " ".join(
-                text.strip()
-                for text in product.css(
-                    "a[data-meta-name='ProductVerticalSnippet__name']::text, "
-                    "a.ProductCardVertical__name::text, "
-                    "a[href*='/product/']::text"
+            name = self._clean_text(
+                product.css(
+                    ".product-tile__name a::text, "
+                    ".product-tile__name a::attr(title), "
+                    "form.js-add-to-cart::attr(data-name)"
                 ).getall()
-                if text.strip()
             )
-            price = str(params.get("price") or self._clean_price(" ".join(product.css("[class*='price']::text").getall())))
-            external_id = str(
-                params.get("id")
-                or params.get("productId")
-                or product.attrib.get("data-meta-product-id")
+            price = self._clean_price(
+                product.css("form.js-add-to-cart::attr(data-price)").get("")
+                or " ".join(product.css(".product-tile__price .price::text, .price::text").getall())
+            )
+            external_id = (
+                product.css("input[name='product_id']::attr(value)").get()
+                or product.css("[data-product-id]::attr(data-product-id), [data-product]::attr(data-product)").get()
                 or self._external_id(url)
             )
 
@@ -70,13 +69,13 @@ class CitilinkSpider(scrapy.Spider):
                 }
 
     @staticmethod
-    def _load_params(value: str) -> dict:
-        if not value:
-            return {}
-        try:
-            return json.loads(html.unescape(value))
-        except json.JSONDecodeError:
-            return {}
+    def _clean_text(values: list[str]) -> str:
+        seen = []
+        for value in values:
+            stripped = value.strip()
+            if stripped and stripped not in seen:
+                seen.append(stripped)
+        return " ".join(seen)
 
     @staticmethod
     def _clean_price(value: str) -> str:
@@ -86,4 +85,4 @@ class CitilinkSpider(scrapy.Spider):
 
     @staticmethod
     def _external_id(url: str) -> str:
-        return sha1(url.encode("utf-8")).hexdigest()
+        return sha1(url.encode("utf-8")).hexdigest() if url else ""

@@ -1,0 +1,98 @@
+{% extends "shops/base.html" %}
+
+{% block title %}{{ product.name }} | PriceCompare{% endblock %}
+
+{% block content %}
+<section class="product-detail">
+  <a class="back-link" href="{% url 'dashboard' %}">← Назад к каталогу</a>
+  <div class="panel detail-card">
+    <div>
+      <p class="eyebrow">{{ product.store.name }}</p>
+      <h1>{{ product.name }}</h1>
+      <p class="detail-price">{{ product.current_price }} ₽</p>
+      <p class="muted">Последнее обновление: {{ product.updated_at|date:"d.m.Y H:i" }}</p>
+    </div>
+    <a class="primary-button" href="{{ product.url }}" target="_blank" rel="noopener">Открыть в магазине</a>
+  </div>
+</section>
+
+<section class="content-grid detail-grid">
+  <div class="panel">
+    <h2>График цены</h2>
+    <canvas id="price-chart" width="900" height="360" data-chart-url="{% url 'product_price_chart' product.id %}"></canvas>
+  </div>
+  <aside class="panel">
+    <h2>История</h2>
+    {% for entry in history %}
+      <div class="history-row"><span>{{ entry.created_at|date:"d.m.Y H:i" }}</span><strong>{{ entry.price }} ₽</strong></div>
+    {% empty %}
+      <p class="muted">Истории цены пока нет.</p>
+    {% endfor %}
+  </aside>
+</section>
+
+<section class="panel">
+  <h2>Скидки по товару</h2>
+  {% for notification in notifications %}
+    <div class="history-row"><span>{{ notification.created_at|date:"d.m.Y H:i" }}</span><strong>{{ notification.old_price }} ₽ → {{ notification.new_price }} ₽</strong></div>
+  {% empty %}
+    <p class="muted">Уведомлений о снижении цены пока нет.</p>
+  {% endfor %}
+</section>
+
+<script>
+(function () {
+  const canvas = document.getElementById('price-chart');
+  if (!canvas) return;
+  const ctx = canvas.getContext('2d');
+  fetch(canvas.dataset.chartUrl)
+    .then(response => response.json())
+    .then(data => drawChart(ctx, canvas, data.points || []))
+    .catch(() => {
+      ctx.fillStyle = '#64748b';
+      ctx.font = '18px sans-serif';
+      ctx.fillText('Не удалось загрузить данные графика', 24, 48);
+    });
+
+  function drawChart(ctx, canvas, points) {
+    ctx.clearRect(0, 0, canvas.width, canvas.height);
+    if (!points.length) {
+      ctx.fillStyle = '#64748b';
+      ctx.font = '18px sans-serif';
+      ctx.fillText('Нет точек истории цены', 24, 48);
+      return;
+    }
+    const padding = 48;
+    const prices = points.map(point => point.price);
+    const min = Math.min(...prices);
+    const max = Math.max(...prices);
+    const range = max - min || 1;
+    const width = canvas.width - padding * 2;
+    const height = canvas.height - padding * 2;
+
+    ctx.strokeStyle = '#dbeafe';
+    ctx.lineWidth = 1;
+    ctx.beginPath();
+    ctx.moveTo(padding, padding);
+    ctx.lineTo(padding, canvas.height - padding);
+    ctx.lineTo(canvas.width - padding, canvas.height - padding);
+    ctx.stroke();
+
+    ctx.strokeStyle = '#2563eb';
+    ctx.lineWidth = 3;
+    ctx.beginPath();
+    points.forEach((point, index) => {
+      const x = padding + (points.length === 1 ? width / 2 : (width * index) / (points.length - 1));
+      const y = padding + height - ((point.price - min) / range) * height;
+      if (index === 0) ctx.moveTo(x, y); else ctx.lineTo(x, y);
+    });
+    ctx.stroke();
+
+    ctx.fillStyle = '#1e293b';
+    ctx.font = '14px sans-serif';
+    ctx.fillText(max.toFixed(2) + ' ₽', padding, padding - 14);
+    ctx.fillText(min.toFixed(2) + ' ₽', padding, canvas.height - padding + 28);
+  }
+})();
+</script>
+{% endblock %}

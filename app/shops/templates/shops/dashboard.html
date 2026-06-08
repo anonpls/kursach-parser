@@ -1,0 +1,85 @@
+{% extends "shops/base.html" %}
+
+{% block title %}Товары и парсинг | PriceCompare{% endblock %}
+
+{% block content %}
+<section class="hero">
+  <div>
+    <p class="eyebrow">Scrapy + Django + Celery</p>
+    <h1>Сравнение цен смартфонов</h1>
+    <p class="hero-text">Запускай парсинг DiCENTRE и TechProm, смотри текущие цены, историю и уведомления о скидках.</p>
+  </div>
+  <form class="parse-card" action="{% url 'run_parser' %}" method="post">
+    {% csrf_token %}
+    <h2>Быстрый запуск парсинга</h2>
+    <div class="checkbox-grid">
+      {% for key, label in available_stores.items %}
+        <label><input type="checkbox" name="stores" value="{{ key }}" checked> {{ label }}</label>
+      {% endfor %}
+    </div>
+    <label class="option"><input type="checkbox" name="skip_parse"> Только загрузить JSON из data/</label>
+    <label class="option"><input type="checkbox" name="allow_empty"> Разрешить пустой результат</label>
+    <button class="primary-button" type="submit">Запустить асинхронно</button>
+  </form>
+</section>
+
+<section class="stats-grid">
+  <article class="stat-card"><span>Товаров</span><strong>{{ products_count }}</strong></article>
+  <article class="stat-card"><span>Магазинов</span><strong>{{ stores|length }}</strong></article>
+  <article class="stat-card"><span>Скидок найдено</span><strong>{{ notifications_count }}</strong></article>
+  <article class="stat-card"><span>Минимальная цена</span><strong>{% if min_price %}{{ min_price }} ₽{% else %}—{% endif %}</strong></article>
+</section>
+
+<section class="content-grid">
+  <div class="panel products-panel">
+    <div class="panel-heading">
+      <h2>Каталог</h2>
+      <form class="filters" method="get">
+        <input type="search" name="q" value="{{ query }}" placeholder="Поиск по названию">
+        <select name="store">
+          <option value="">Все магазины</option>
+          {% for store in stores %}
+            <option value="{{ store.id }}" {% if selected_store == store.id|stringformat:"s" %}selected{% endif %}>{{ store.name }} ({{ store.products_count }})</option>
+          {% endfor %}
+        </select>
+        <button type="submit">Найти</button>
+      </form>
+    </div>
+
+    <div class="product-grid">
+      {% for product in page_obj %}
+        <article class="product-card">
+          <div class="product-meta">{{ product.store.name }}</div>
+          <h3><a href="{% url 'product_detail' product.id %}">{{ product.name }}</a></h3>
+          <div class="price">{{ product.current_price }} ₽</div>
+          <div class="updated">Обновлено: {{ product.updated_at|date:"d.m.Y H:i" }}</div>
+          <a class="external-link" href="{{ product.url }}" target="_blank" rel="noopener">Открыть магазин</a>
+        </article>
+      {% empty %}
+        <div class="empty-state">Пока нет товаров. Запусти парсинг или загрузи готовые JSON-файлы.</div>
+      {% endfor %}
+    </div>
+
+    {% if page_obj.paginator.num_pages > 1 %}
+      <nav class="pagination">
+        {% if page_obj.has_previous %}<a href="?page={{ page_obj.previous_page_number }}&q={{ query }}&store={{ selected_store }}">← Назад</a>{% endif %}
+        <span>Страница {{ page_obj.number }} из {{ page_obj.paginator.num_pages }}</span>
+        {% if page_obj.has_next %}<a href="?page={{ page_obj.next_page_number }}&q={{ query }}&store={{ selected_store }}">Вперёд →</a>{% endif %}
+      </nav>
+    {% endif %}
+  </div>
+
+  <aside class="panel discounts-panel">
+    <h2>Уведомления о скидках</h2>
+    {% for item in discounts %}
+      <article class="discount-item">
+        <a href="{% url 'product_detail' item.product.id %}">{{ item.product.name }}</a>
+        <span>{{ item.old_price }} ₽ → <strong>{{ item.new_price }} ₽</strong></span>
+        <small>{{ item.created_at|date:"d.m.Y H:i" }} · {{ item.product.store.name }}</small>
+      </article>
+    {% empty %}
+      <p class="muted">Скидок пока нет. Они появятся, когда новая цена будет ниже предыдущей.</p>
+    {% endfor %}
+  </aside>
+</section>
+{% endblock %}
