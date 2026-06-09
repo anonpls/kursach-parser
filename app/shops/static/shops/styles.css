@@ -137,3 +137,31 @@ canvas { width: 100%; max-width: 100%; border-radius: 16px; background: #fff; }
   .stats-grid, .checkbox-grid { grid-template-columns: 1fr; }
   .detail-card { align-items: flex-start; flex-direction: column; }
 }
+
+.simulate-panel {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(320px, 520px);
+  gap: 20px;
+  align-items: center;
+  margin-bottom: 22px;
+}
+.simulate-form {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 12px;
+  align-items: center;
+  justify-content: flex-end;
+}
+.small-input {
+  border: 1px solid var(--line);
+  border-radius: 12px;
+  min-height: 38px;
+  width: 86px;
+  padding: 0 10px;
+  background: #fff;
+}
+
+@media (max-width: 900px) {
+  .simulate-panel { grid-template-columns: 1fr; }
+  .simulate-form { justify-content: stretch; }
+}

@@ -1,5 +1,6 @@
 import re
 from hashlib import sha1
+from urllib.parse import parse_qs, urlparse
 
 import scrapy
 
@@ -23,6 +24,10 @@ class DicentreSpider(scrapy.Spider):
             "Chrome/125.0.0.0 Safari/537.36"
         ),
     }
+
+    def __init__(self, max_pages: str | int = 1, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        self.max_pages = max(1, int(max_pages or 1))
 
     def parse(self, response):
         if response.status in {401, 403}:
@@ -68,6 +73,12 @@ class DicentreSpider(scrapy.Spider):
                     "price": price,
                 }
 
+        current_page = self._page_number(response.url)
+        if current_page < self.max_pages:
+            next_page = self._next_page_url(response)
+            if next_page:
+                yield response.follow(next_page, callback=self.parse)
+
     @staticmethod
     def _clean_text(values: list[str]) -> str:
         seen = []
@@ -86,3 +97,35 @@ class DicentreSpider(scrapy.Spider):
     @staticmethod
     def _external_id(url: str) -> str:
         return sha1(url.encode("utf-8")).hexdigest() if url else ""
+
+    @staticmethod
+    def _next_page_url(response) -> str:
+        current_page = DicentreSpider._page_number(response.url)
+        candidates = response.css(
+            ".js-pagination a.inline-link::attr(href), "
+            ".js-pagination li:not(.selected) a[href*='page=']::attr(href), "
+            ".paging-nav a[href*='page=']::attr(href)"
+        ).getall()
+        return DicentreSpider._next_numbered_url(response, candidates, "page", current_page)
+
+    @staticmethod
+    def _next_numbered_url(response, candidates: list[str], query_key: str, current_page: int) -> str:
+        numbered_urls = []
+        for href in candidates:
+            absolute_url = response.urljoin(href)
+            values = parse_qs(urlparse(absolute_url).query).get(query_key, [])
+            try:
+                page = int(values[0])
+            except (IndexError, TypeError, ValueError):
+                continue
+            if page > current_page:
+                numbered_urls.append((page, absolute_url))
+        return min(numbered_urls)[1] if numbered_urls else ""
+
+    @staticmethod
+    def _page_number(url: str) -> int:
+        page_values = parse_qs(urlparse(url).query).get("page", ["1"])
+        try:
+            return int(page_values[0])
+        except (TypeError, ValueError):
+            return 1
