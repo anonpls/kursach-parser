@@ -10,6 +10,7 @@ from django.shortcuts import get_object_or_404, redirect, render
 from django.views.decorators.http import require_POST
 
 from .models import DiscountNotification, Product, Store
+from .services import simulate_price_dynamics
 from .tasks import parse_and_sync_prices
 
 ROOT_DIR = Path(__file__).resolve().parents[2]
@@ -82,15 +83,17 @@ def run_parser(request):
     stores = selected_stores or sorted(AVAILABLE_STORES)
     skip_parse = request.POST.get("skip_parse") == "on"
     allow_empty = request.POST.get("allow_empty") == "on"
+    max_pages = _positive_int(request.POST.get("max_pages"), default=1)
 
     try:
-        task = parse_and_sync_prices.delay(stores, skip_parse=skip_parse, allow_empty=allow_empty)
+        task = parse_and_sync_prices.delay(stores, skip_parse=skip_parse, allow_empty=allow_empty, max_pages=max_pages)
     except Exception as exc:
         command = [sys.executable, "scripts/load_prices.py", *stores]
         if skip_parse:
             command.append("--skip-parse")
         if allow_empty:
             command.append("--allow-empty")
+        command.extend(["--max-pages", str(max_pages)])
         subprocess.Popen(command, cwd=ROOT_DIR)
         messages.warning(
             request,
@@ -101,3 +104,36 @@ def run_parser(request):
         messages.success(request, f"Парсинг запущен в Celery. Task ID: {task.id}")
 
     return redirect("dashboard")
+
+
+@require_POST
+def simulate_prices(request):
+    days = _positive_int(request.POST.get("days"), default=10)
+    max_products = _positive_int(request.POST.get("max_products"), default=40)
+    seed = _positive_int(request.POST.get("seed"), default=42)
+    write_json = request.POST.get("write_json") == "on"
+    json_dir = ROOT_DIR / "data" / "simulated" if write_json else None
+
+    try:
+        result = simulate_price_dynamics(days=days, max_products=max_products, seed=seed, json_dir=json_dir)
+    except ValueError as exc:
+        messages.error(request, f"Не удалось смоделировать цены: {exc}")
+    else:
+        messages.success(
+            request,
+            "Смоделирована динамика цен: "
+            f"товаров — {result['products']}, "
+            f"точек истории — {result['history']}, "
+            f"скидок — {result['discounts']}, "
+            f"JSON-файлов — {result['json_files']}.",
+        )
+
+    return redirect("dashboard")
+
+
+def _positive_int(value: str | None, default: int) -> int:
+    try:
+        parsed = int(value or default)
+    except (TypeError, ValueError):
+        return default
+    return parsed if parsed > 0 else default
