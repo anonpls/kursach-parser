@@ -137,3 +137,65 @@ canvas { width: 100%; max-width: 100%; border-radius: 16px; background: #fff; }
   .stats-grid, .checkbox-grid { grid-template-columns: 1fr; }
   .detail-card { align-items: flex-start; flex-direction: column; }
 }
+
+.simulate-panel {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(320px, 520px);
+  gap: 20px;
+  align-items: center;
+  margin-bottom: 22px;
+}
+.simulate-form {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 12px;
+  align-items: center;
+  justify-content: flex-end;
+}
+.small-input {
+  border: 1px solid var(--line);
+  border-radius: 12px;
+  min-height: 38px;
+  width: 86px;
+  padding: 0 10px;
+  background: #fff;
+}
+
+@media (max-width: 900px) {
+  .simulate-panel { grid-template-columns: 1fr; }
+  .simulate-form { justify-content: stretch; }
+}
+.chart-wrap {
+  position: relative;
+}
+.chart-tooltip {
+  position: absolute;
+  z-index: 2;
+  pointer-events: none;
+  transform: translate(-50%, calc(-100% - 12px));
+  opacity: 0;
+  visibility: hidden;
+  border-radius: 12px;
+  background: #0f172a;
+  color: #fff;
+  font-size: 14px;
+  font-weight: 800;
+  padding: 8px 12px;
+  box-shadow: 0 12px 30px rgba(15, 23, 42, 0.18);
+  transition: opacity 0.15s ease, visibility 0.15s ease;
+  white-space: nowrap;
+}
+.chart-tooltip::after {
+  content: "";
+  position: absolute;
+  left: 50%;
+  bottom: -6px;
+  transform: translateX(-50%);
+  border: 6px solid transparent;
+  border-top-color: #0f172a;
+  border-bottom: 0;
+}
+.chart-tooltip.is-visible {
+  opacity: 1;
+  visibility: visible;
+}

@@ -30,7 +30,7 @@ def run(command: list[str]) -> None:
     subprocess.run(command, cwd=ROOT_DIR, check=True)
 
 
-def parse_prices(stores: list[str]) -> None:
+def parse_prices(stores: list[str], max_pages: int = 1) -> None:
     DATA_DIR.mkdir(exist_ok=True)
     for store in stores:
         config = SPIDERS[store]
@@ -40,6 +40,8 @@ def parse_prices(stores: list[str]) -> None:
             "scrapy",
             "runspider",
             str(config["path"]),
+            "-a",
+            f"max_pages={max_pages}",
             "-O",
             str(config["output"]),
         ])
@@ -89,12 +91,21 @@ def main() -> None:
         action="store_true",
         help="Не считать ошибкой пустой результат парсинга.",
     )
+    parser.add_argument(
+        "--max-pages",
+        type=int,
+        default=1,
+        help="Сколько страниц каталога загрузить для каждого магазина. По умолчанию 1.",
+    )
     args = parser.parse_args()
 
     stores = args.stores or sorted(SPIDERS)
 
+    if args.max_pages < 1:
+        parser.error("--max-pages должен быть больше 0")
+
     if not args.skip_parse:
-        parse_prices(stores)
+        parse_prices(stores, max_pages=args.max_pages)
     save_prices(stores, allow_empty=args.allow_empty)
 
 

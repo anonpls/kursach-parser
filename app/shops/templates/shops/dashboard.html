@@ -17,9 +17,26 @@
         <label><input type="checkbox" name="stores" value="{{ key }}" checked> {{ label }}</label>
       {% endfor %}
     </div>
+    <label class="option">Страниц каталога: <input class="small-input" type="number" name="max_pages" value="1" min="1" max="20"></label>
     <label class="option"><input type="checkbox" name="skip_parse"> Только загрузить JSON из data/</label>
     <label class="option"><input type="checkbox" name="allow_empty"> Разрешить пустой результат</label>
     <button class="primary-button" type="submit">Запустить асинхронно</button>
+  </form>
+</section>
+
+<section class="panel simulate-panel">
+  <div>
+    <p class="eyebrow">Демо-режим</p>
+    <h2>Смоделировать скидки и историю цен</h2>
+    <p class="muted">Создаёт несколько точек истории для графиков и уведомления о снижении цены, не дожидаясь реальных акций.</p>
+  </div>
+  <form class="simulate-form" action="{% url 'simulate_prices' %}" method="post">
+    {% csrf_token %}
+    <label>Дней <input class="small-input" type="number" name="days" value="10" min="2" max="60"></label>
+    <label>Товаров <input class="small-input" type="number" name="max_products" value="40" min="1" max="200"></label>
+    <label>Seed <input class="small-input" type="number" name="seed" value="42" min="1"></label>
+    <label class="option"><input type="checkbox" name="write_json" checked> Создать JSON в data/simulated/</label>
+    <button class="primary-button" type="submit">Смоделировать</button>
   </form>
 </section>
 
