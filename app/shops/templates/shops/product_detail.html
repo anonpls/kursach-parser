@@ -19,7 +19,10 @@
 <section class="content-grid detail-grid">
   <div class="panel">
     <h2>График цены</h2>
-    <canvas id="price-chart" width="900" height="360" data-chart-url="{% url 'product_price_chart' product.id %}"></canvas>
+    <div class="chart-wrap">
+      <canvas id="price-chart" width="900" height="360" data-chart-url="{% url 'product_price_chart' product.id %}"></canvas>
+      <div id="price-chart-tooltip" class="chart-tooltip" role="status" aria-live="polite"></div>
+    </div>
   </div>
   <aside class="panel">
     <h2>История</h2>
@@ -45,9 +48,15 @@
   const canvas = document.getElementById('price-chart');
   if (!canvas) return;
   const ctx = canvas.getContext('2d');
+  const tooltip = document.getElementById('price-chart-tooltip');
+  let chartPoints = [];
+
   fetch(canvas.dataset.chartUrl)
     .then(response => response.json())
-    .then(data => drawChart(ctx, canvas, data.points || []))
+    .then(data => {
+      chartPoints = drawChart(ctx, canvas, data.points || []);
+      bindTooltip(canvas, tooltip, chartPoints);
+    })
     .catch(() => {
       ctx.fillStyle = '#64748b';
       ctx.font = '18px sans-serif';
@@ -60,7 +69,7 @@
       ctx.fillStyle = '#64748b';
       ctx.font = '18px sans-serif';
       ctx.fillText('Нет точек истории цены', 24, 48);
-      return;
+      return [];
     }
     const padding = 48;
     const prices = points.map(point => point.price);
@@ -69,6 +78,11 @@
     const range = max - min || 1;
     const width = canvas.width - padding * 2;
     const height = canvas.height - padding * 2;
+    const positionedPoints = points.map((point, index) => ({
+      ...point,
+      x: padding + (points.length === 1 ? width / 2 : (width * index) / (points.length - 1)),
+      y: padding + height - ((point.price - min) / range) * height,
+    }));
 
     ctx.strokeStyle = '#dbeafe';
     ctx.lineWidth = 1;
@@ -81,17 +95,80 @@
     ctx.strokeStyle = '#2563eb';
     ctx.lineWidth = 3;
     ctx.beginPath();
-    points.forEach((point, index) => {
-      const x = padding + (points.length === 1 ? width / 2 : (width * index) / (points.length - 1));
-      const y = padding + height - ((point.price - min) / range) * height;
-      if (index === 0) ctx.moveTo(x, y); else ctx.lineTo(x, y);
+    positionedPoints.forEach((point, index) => {
+      if (index === 0) ctx.moveTo(point.x, point.y); else ctx.lineTo(point.x, point.y);
     });
     ctx.stroke();
+
+    positionedPoints.forEach(point => drawPoint(ctx, point, false));
 
     ctx.fillStyle = '#1e293b';
     ctx.font = '14px sans-serif';
     ctx.fillText(max.toFixed(2) + ' ₽', padding, padding - 14);
     ctx.fillText(min.toFixed(2) + ' ₽', padding, canvas.height - padding + 28);
+
+    return positionedPoints;
+  }
+
+  function bindTooltip(canvas, tooltip, points) {
+    if (!tooltip || !points.length) return;
+
+    canvas.addEventListener('mousemove', event => {
+      const hoveredPoint = findHoveredPoint(canvas, event, points);
+      if (!hoveredPoint) {
+        hideTooltip(tooltip);
+        drawChart(ctx, canvas, points);
+        return;
+      }
+
+      drawChart(ctx, canvas, points);
+      drawPoint(ctx, hoveredPoint, true);
+      showTooltip(canvas, tooltip, hoveredPoint);
+    });
+    canvas.addEventListener('mouseleave', () => {
+      hideTooltip(tooltip);
+      drawChart(ctx, canvas, points);
+    });
+  }
+
+  function drawPoint(ctx, point, isActive) {
+    ctx.beginPath();
+    ctx.arc(point.x, point.y, isActive ? 7 : 5, 0, Math.PI * 2);
+    ctx.fillStyle = isActive ? '#1d4ed8' : '#ffffff';
+    ctx.fill();
+    ctx.strokeStyle = '#2563eb';
+    ctx.lineWidth = isActive ? 4 : 3;
+    ctx.stroke();
+  }
+
+  function findHoveredPoint(canvas, event, points) {
+    const rect = canvas.getBoundingClientRect();
+    const scaleX = canvas.width / rect.width;
+    const scaleY = canvas.height / rect.height;
+    const mouseX = (event.clientX - rect.left) * scaleX;
+    const mouseY = (event.clientY - rect.top) * scaleY;
+    return points.find(point => Math.hypot(point.x - mouseX, point.y - mouseY) <= 12);
+  }
+
+  function showTooltip(canvas, tooltip, point) {
+    const rect = canvas.getBoundingClientRect();
+    const scaleX = rect.width / canvas.width;
+    const scaleY = rect.height / canvas.height;
+    tooltip.textContent = formatPrice(point.price);
+    tooltip.style.left = `${point.x * scaleX}px`;
+    tooltip.style.top = `${point.y * scaleY}px`;
+    tooltip.classList.add('is-visible');
+  }
+
+  function hideTooltip(tooltip) {
+    tooltip.classList.remove('is-visible');
+  }
+
+  function formatPrice(price) {
+    return Number(price).toLocaleString('ru-RU', {
+      minimumFractionDigits: 2,
+      maximumFractionDigits: 2,
+    }) + ' ₽';
   }
 })();
 </script>
